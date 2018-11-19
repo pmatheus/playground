@@ -2,7 +2,7 @@ import numpy as np
 import gym
 from gym import error
 
-class ActionSpace(gym.space):
+class ActionSpace(gym.Space):
     lookup = {
         0: "Hold",
         1: "Buy",
