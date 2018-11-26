@@ -20,10 +20,10 @@ class BinanceEnv(gym.Env):
         #super(BinanceEnv, self).__init__()
         
         # Custom Parameters
-        self.data_path = "C:\\Users\\uranus\\kage-bushin\\data"
+        self.data_path = "C:\\Users\\uranus\\kage-bushin\\data\\"
         self.exchange = "binance"
         self.pairs = ['BTC/USDT','BNB/BTC','ETH/BTC','IOTA/BTC','XMR/BTC']
-        self.init_invest = 1000
+        self.init_invest = {'BTC': 1, 'USDT': 1000}
         self.coins = ['BTC', 'BNB', 'ETH', 'IOTA', 'XMR']
         #data
         data_loader = DataLoader(self.data_path, self.exchange, self.pairs)
@@ -35,7 +35,6 @@ class BinanceEnv(gym.Env):
         self.cur_step = 0
         self.cur_timestamp = None
         self.currency_owned = {}
-        self.coins = []
         self.currency_price = {}
         self.cash_in_hand = None
 
@@ -68,34 +67,41 @@ class BinanceEnv(gym.Env):
         self.cur_step = 0
         currency_owned = {}
         for coin in self.coins:
-            currency_owned[coin] = 0
+            if coin in self.init_invest:
+                currency_owned[coin] = self.init_invest[coin]
+            else:
+                currency_owned[coin] = 0
         self.currency_owned = currency_owned
         self.currency_price = self._get_currency_price()
-        self.cash_in_hand = self.init_invest
+        self.cash_in_hand = self.init_invest['USDT']
+        return self._get_obs()
     
     def _get_currency_price(self):
         state = self._get_state()
         prices = {}
         for pair in self.pairs:
             pair_state = state[state["Pair"] == pair.replace("/","")]
-            price = float(pair_state["Close"])
-            if price is not None:
+            if len(pair_state) > 0:
+                price = float(pair_state["Close"])
                 prices[pair.split("/")[0]] = price
+            else:
+                prices[pair.split("/")[0]] = 0
         return prices
 
     def _get_obs(self):
         obs = []
-        obs.extend(self.currency_owned)
-        obs.extend(list(self.currency_price))
+        obs.append(self.currency_owned)
+        obs.append(self.currency_price)
         obs.append(self.cash_in_hand)
-    
+        return obs
+
     def _get_val(self):
-        val = self.cash_in_hand
+        val = 0
         for k, v in self.currency_owned.items():
                 if k == 'BTC':
-                    val += self.currency_price[k] * v
+                    val += self.currency_owned[k]
                 else:
-                    val += self.currency_price[k] * v * self.currency_price['BTC'] 
+                    val += self.currency_price[k] * v
         return val
 
     def _trade(self, action):
@@ -136,7 +142,7 @@ class BinanceEnv(gym.Env):
     
     def _buy(self, i, btc_allocation):
         #TODO: SET TO EXCHANGE MIN BUY
-        if self.coins[i] == 'BTC' and self.currency_owned['USDT'] > 0 and self.currency_price[self.coins[i]] > 0:
+        if self.coins[i] == 'BTC' and self.cash_in_hand > 0 and self.currency_price[self.coins[i]] > 0:
             self.currency_owned[self.coins[i]] = self.cash_in_hand / self.currency_price[self.coins[i]]
             self.cash_in_hand = 0
         elif self.currency_owned['BTC'] > 0 and self.currency_price[self.coins[i]] > 0:

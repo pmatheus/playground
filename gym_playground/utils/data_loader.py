@@ -20,17 +20,18 @@ class DataLoader:
 
         for pair in self.pairs:
             for f in data_files:
-                if (pair in f and self.exchange in f):
+                if (pair.replace("/","") in f and self.exchange in f):
                     files_to_load.append(f)
         
-        data_frames = {}
+        data_frames = []
         for f in files_to_load:
-            data_frames[f.replace("-1m.csv","")] = pd.read_csv(self.data_path+f)
-            data_frames[f.replace('-1m.csv','')]["Pair"] = f.split("-")[1]
+            data_frame = pd.read_csv(self.data_path+f)
+            data_frame["Pair"] = f.split("-")[1]
+            data_frames.append(data_frame)
 
         result = pd.concat(data_frames)
         result = result.sort_values(by=['Timestamp'])
         result = result.reset_index()
-        result = result.drop(['level_0','level_1'], axis=1)
+        result = result.drop(['index'], axis=1)
 
         self.data = result
